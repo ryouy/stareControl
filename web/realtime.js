@@ -29,6 +29,8 @@
     "#starecontrol-realtime .heading{position:absolute;top:40px;left:50%;transform:translateX(-50%);text-align:center;z-index:3;pointer-events:none;max-width:50vw}",
     "#starecontrol-realtime .heading h1{font-size:clamp(18px,3vw,34px);margin:0;font-weight:630;letter-spacing:-.7px}",
     "#starecontrol-realtime .heading p{color:#9eb1cc;margin:5px 0;font-size:13px}",
+    "#starecontrol-realtime.calibrating .panel,#starecontrol-realtime.calibrating .camera{opacity:0;pointer-events:none}",
+    "#starecontrol-realtime.calibrating .heading{top:25%}",
     "#starecontrol-realtime .target{position:absolute;width:38px;height:38px;border:2px solid #c9ddff;border-radius:50%;transform:translate(-50%,-50%);display:none;z-index:5;pointer-events:none;box-shadow:0 0 0 14px #8ebaff16,0 0 42px #96bfff55}",
     "#starecontrol-realtime .target:after{content:\"\";position:absolute;inset:12px;border-radius:100%;background:#eaf5ff}",
     "#starecontrol-realtime .cursor{position:absolute;width:26px;height:26px;border:2px solid #8ee9ce;border-radius:50%;transform:translate(-50%,-50%);display:none;z-index:4;pointer-events:none;box-shadow:0 0 0 9px #8ee9ce18,0 0 30px #8ee9ce44;transition:left 45ms linear,top 45ms linear}",
@@ -143,7 +145,7 @@
       training.index++;training.startCount=training.samples.length;training.stepAt=now;
       if(training.index>=points.length){
         const samples=training.samples;
-        training=null;target.style.display="none";
+        training=null;root.classList.remove("calibrating");target.style.display="none";
         try{
           model=fit(samples);
           baseline=[median(samples.map(s=>s.ea)),median(samples.map(s=>s.eb))];
@@ -267,6 +269,7 @@
     if(!running)return;
     model=null;baseline=null;smoothed=null;dataset=[];lastPrediction=null;lastClick=0;
     csvBtn.disabled=true;byId("sc-pos").textContent="—";
+    root.classList.add("calibrating");
     training={index:0,samples:[],startCount:0,stepAt:performance.now()};
     const p=points[0];place(target,p[0],p[1]);target.style.display="block";cursor.style.display="none";
     byId("sc-bar").style.width="0%";
