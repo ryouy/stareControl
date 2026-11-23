@@ -1,43 +1,39 @@
 # stareControl
 
-通常のWebカメラから視線位置を推定し、目を軽く細めた操作を疑似クリックとして認識する実験プロジェクトです。
+通常のWebカメラからリアルタイムで視線位置を推定する、視線コントローラの実験プロジェクトです。細目クリック（疑似クリック）と多点・連続キャリブレーションに対応します。
 
-## リアルタイム版（専用タブで開く）
+## Colabで開く
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Realtime_Calibration.ipynb)
 
-**[リアルタイム版をColabで開く](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Realtime_Calibration.ipynb)**
+**[最新版のリアルタイム学習ノートブック](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Realtime_Calibration.ipynb)**
 
-1. Colabで**上からすべてのセルを実行**する
-2. 最後のセルに出る `https://localhost:...` の**Colab転送リンク**をクリックする
-3. **別タブの専用画面**でカメラ使用を許可する
-4. 「全画面」→「9点学習」で表示される9点を約2秒ずつ見る
-5. 緑色の点で視線推定を確認し、**両目を軽く細めて約0.45秒維持**すると疑似クリック
-6. 必要ならクリック感度・維持時間を調整し、CSV保存
+ノートブックを上から実行し、最後のセルから**別タブの専用画面**を開いてください。カメラ開始後、全画面に切り替えてから学習するのがおすすめです。
 
-### Colabセル内では表示しない理由
+### 学習方法
 
-Colabの `display(Javascript(...))` はセル出力の小さなフレームに画面が収まってしまい、カメラ・学習点が切れることがあります。修正版はPythonの簡易Webサーバーと `output.serve_kernel_port_as_window` で独立したタブへ切り出しています。Colabのランタイムを切断すると専用画面も停止します。
+| モード | 動作 |
+| --- | --- |
+| **離散点学習** | 画面の **9・25・49点** を約1.6秒ずつ見つめる |
+| **連続追従学習** | 画面を移動する目標点を **30・60・90秒** 追いかける |
+| **両方学習** | 離散学習の後に連続追従学習を実行 |
+| **追加学習** | 過去のサンプルに新しいサンプルを追加してモデルを再計算 |
 
-**ノートブックの中に実装本体（JavaScript）も収録済み**です。11行の起動処理だけでなく、全文をColabで編集・検証できます。
+標準は**25点＋60秒**です。学習中の中止は **Esc** または右上の「学習を中止」。学習サンプルCSVで、目標座標・目の特徴量・学習モードを保存できます。再実行時にも同一セッション内の学習データを使います。「学習データを初期化」で消去できます。
 
-### 直接表示用HTML
+学習した視線位置は緑の点で表示します。両目を軽く細めて約0.45秒維持すると疑似クリックになります。
 
-`index.html` は同じリアルタイムUIの静的HTMLです。GitHub PagesなどHTTPSの静的ホスティングを有効にするとColabなしで開けます。ただしPagesで公開していないリポジトリでは直接アクセスできません。
+### 精度・プライバシーに関する注意
 
-### 制限
+普通のWebカメラでは画面位置の推定に限界があります。表示される「学習内の平均誤差」は**学習データへの当てはまり**であり、未学習位置の精度を示す検証結果ではありません。連続追従では視線の遅れを約140msと仮定してラベルを補正しています。
 
-一般的なWebカメラによる視線推定は近似値で、照明・姿勢などに左右されます。OSのマウスポインタは動かしません。映像を録画・サーバーに送信する実装はありません。MediaPipeのモデルとライブラリは外部CDNから読み込みます。
+動画を録画・アップロードするコードはなく、学習サンプルはブラウザメモリ上に保持します。CSVは明示的に保存したときのみ出力されます。外部CDNからMediaPipeの実行コードとモデルを読み込みます。
 
-## 録画解析パイロット版
+## リポジトリ構成
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Colab_Pilot.ipynb)
+- `stareControl_Realtime_Calibration.ipynb` — 独立タブの実験用Colab（JavaScript全文を収録）
+- `web/realtime.js` — リアルタイム解析、学習、GUIの本体
+- `index.html` — 静的ホスティング用HTML
+- `stareControl_Colab_Pilot.ipynb` — 以前の録画解析実験
 
-以前の12秒の録画動画解析を行う実験ノートブックです。
-
-## 構成
-
-- `stareControl_Realtime_Calibration.ipynb`: リアルタイム専用画面と全実装コードを含むColab版
-- `web/realtime.js`: Web版実装の原本
-- `index.html`: 静的ホスティング用の専用画面
-- `stareControl_Colab_Pilot.ipynb`: 録画解析の旧実験版
+**制限:** 現在は画面内の疑似クリックのみで、OSマウスは直接操作しません。
