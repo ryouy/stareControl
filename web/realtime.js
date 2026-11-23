@@ -148,40 +148,108 @@
             y:clip(z.reduce((sum,q,i)=>sum+q*m.by[i],0))};
   }
   function place(el,x,y){el.style.left=(x*100)+"%";el.style.top=(y*100)+"%";}
-  function tickCalibration(info, now){
-    if(!training || !info)return;
-    const elapsed=now-training.stepAt;
-    const p=points[training.index];
-    if(elapsed>650 && info.a.ear>.13 && info.b.ear>.13){
-      training.samples.push({v:info.v,x:p[0],y:p[1],ea:info.a.ear,eb:info.b.ear});
+  function stageNow(){return training&&training.stages[training.stageIndex];}
+  function updateProgress(now){
+    if(!training)return;
+    const stage=stageNow();let done=0,total=0;
+    training.stages.forEach((v,i)=>{
+      const d=v.kind==="grid"?v.points.length*1600:v.duration;
+      total+=d;if(i<training.stageIndex)done+=d;
+      else if(i===training.stageIndex)done+=v.kind==="grid"?training.point*1600+Math.min(1600,now-training.since):Math.min(d,now-training.since);
+    });
+    const percent=Math.round(100*done/Math.max(1,total));
+    byId("sc-bar").style.width=percent+"%";
+    if(stage.kind==="grid"){
+      byId("sc-title").textContent="静止した点を見つめてください";
+      byId("sc-instruction").textContent="点 "+(training.point+1)+" / "+stage.points.length+" · "+percent+"% · "+training.samples.length+"サンプル";
+    }else{
+      byId("sc-title").textContent="動く点を目で追ってください";
+      byId("sc-instruction").textContent=percent+"% · "+training.samples.length+"サンプル · 顔はなるべく固定";
     }
-    if(elapsed>=2000){
-      if(training.samples.length-training.startCount<5){
-        training.stepAt=now-1000;
-        status("顔をカメラに向け、点を見続けてください");
-        return;
+  }
+  function showStage(now){
+    training.since=now;training.point=0;training.startCount=training.samples.length;
+    training.lastSampleAt=0;training.retries=0;
+    const stage=stageNow(),p=stage.kind==="grid"?stage.points[0]:trail(0,stage.duration);
+    place(target,p[0],p[1]);target.style.display="block";updateProgress(now);
+  }
+  function cancelTraining(message="学習を中止しました。収集中のサンプルは追加しません。"){
+    if(!training)return;
+    training=null;root.classList.remove("calibrating");target.style.display="none";
+    byId("sc-title").textContent="視線のリアルタイム推定";
+    byId("sc-instruction").textContent="必要なら学習を再実行してください";
+    byId("sc-bar").style.width="0%";status(message);
+  }
+  function finishTraining(){
+    const fresh=training.samples;
+    training=null;root.classList.remove("calibrating");target.style.display="none";
+    byId("sc-title").textContent="視線のリアルタイム推定";
+    byId("sc-instruction").textContent="緑の点が推定した視線位置です";
+    try{
+      const samples=[...learnedSamples,...fresh], next=fit(samples);
+      const error=mean(samples.map(e=>{
+        const p=predict(e.v,next);
+        return Math.hypot((p.x-e.x)*root.clientWidth,(p.y-e.y)*root.clientHeight);
+      }));
+      model=next;
+      // Memory cap to avoid excessive fitting cost on many extra sessions.
+      learnedSamples=samples.length>7000?samples.filter((_,i)=>i%2===0):samples;
+      baseline=[median(learnedSamples.map(e=>e.ea)),median(learnedSamples.map(e=>e.eb))];
+      smoothed=null;latched=false;squintStart=0;lastClick=0;
+      byId("sc-count").textContent=learnedSamples.length+"件";
+      byId("sc-fiterror").textContent=Math.round(error)+" px (学習内)";
+      byId("sc-bar").style.width="100%";trainCsvBtn.disabled=false;
+      status("学習完了。新規 "+fresh.length+"件、累計 "+learnedSamples.length+"件を使いました。");
+    }catch(e){byId("sc-bar").style.width="0%";status("学習エラー: "+e.message+"。以前のモデルは保持しています。");}
+  }
+  function nextStage(now){
+    training.stageIndex++;
+    if(training.stageIndex>=training.stages.length){finishTraining();return;}
+    showStage(now);
+  }
+  function tickCalibration(info,now){
+    if(!training)return;
+    const stage=stageNow(),elapsed=Math.max(0,now-training.since);
+    const open=info&&info.a.ear>.13&&info.b.ear>.13;
+    if(stage.kind==="grid"){
+      const p=stage.points[training.point];place(target,p[0],p[1]);
+      if(open&&elapsed>=400&&now-training.lastSampleAt>=90){
+        training.samples.push({kind:"discrete",v:info.v,x:p[0],y:p[1],ea:info.a.ear,eb:info.b.ear});
+        training.lastSampleAt=now;
       }
-      training.index++;training.startCount=training.samples.length;training.stepAt=now;
-      if(training.index>=points.length){
-        const samples=training.samples;
-        training=null;root.classList.remove("calibrating");target.style.display="none";
-        try{
-          model=fit(samples);
-          baseline=[median(samples.map(s=>s.ea)),median(samples.map(s=>s.eb))];
-          recentOpen=[];smoothed=null;latched=false;squintStart=0;
-          status("学習完了。緑の丸が推定した視線位置です。目を細めてクリックを試してください。");
-          byId("sc-title").textContent="視線のリアルタイム推定";
-          byId("sc-instruction").textContent="緑の点を視線で動かしてください";
-        }catch(e){status("学習失敗: "+e.message);}
-        byId("sc-bar").style.width=model?"100%":"0%";
-      }else{
-        const q=points[training.index];
-        place(target,q[0],q[1]);byId("sc-bar").style.width=(training.index/points.length*100)+"%";
-        byId("sc-title").textContent="点を見つめてください";
-        byId("sc-instruction").textContent=(training.index+1)+" / "+points.length+" — 顔をなるべく動かさず、目だけを動かす";
-        status("点 "+(training.index+1)+" / 9 を学習しています");
+      if(elapsed>=1600){
+        if(training.samples.length-training.startCount<4){
+          training.retries++;
+          if(training.retries>8){cancelTraining("顔や目が十分に検出できず中断しました。");return;}
+          training.since=now-700;status("顔をカメラへ向け、点を見つめてください。");return;
+        }
+        training.point++;
+        if(training.point>=stage.points.length){nextStage(now);return;}
+        training.since=now;training.startCount=training.samples.length;
+        training.lastSampleAt=0;training.retries=0;
       }
+    }else{
+      // Approximate gaze-following latency compensation, not individually calibrated.
+      const label=trail(Math.max(0,elapsed-140),stage.duration);
+      place(target,...trail(elapsed,stage.duration));
+      if(open&&elapsed>=500&&now-training.lastSampleAt>=90){
+        training.samples.push({kind:"continuous",v:info.v,x:label[0],y:label[1],ea:info.a.ear,eb:info.b.ear});
+        training.lastSampleAt=now;
+      }
+      if(elapsed>=stage.duration){nextStage(now);return;}
     }
+    updateProgress(now);
+  }
+  function beginTraining(mode){
+    if(!running)return;
+    if(training)cancelTraining();
+    const n=Number(byId("sc-grid").value),d=Number(byId("sc-duration").value)*1000,stages=[];
+    if(mode==="grid"||mode==="both")stages.push({kind:"grid",points:grid(n)});
+    if(mode==="continuous"||mode==="both")stages.push({kind:"continuous",duration:d});
+    training={stages,stageIndex:0,since:0,point:0,startCount:0,lastSampleAt:0,retries:0,samples:[]};
+    smoothed=null;squintStart=0;latched=false;
+    root.classList.add("calibrating");cursor.style.display="none";
+    showStage(performance.now());byId("sc-bar").style.width="0%";
   }
   function handleClick(info,now){
     if(!baseline||!model||training||!info){squintStart=0;latched=false;return;}
@@ -241,7 +309,7 @@
           handleClick(info,now);
         }else{cursor.style.display="none";}
         if(!training && model && !latched && now-lastClick>1200)status("視線を推定中（緑の点）。両目を細めると疑似クリック。");
-        if(training && now-training.stepAt<350)status("点 "+(training.index+1)+" / 9 を見つめてください");
+        if(training && now-training.since<350)status(stageNow().kind==="grid"?"静止点を見つめてください":"動く点を目で追ってください");
         if(frames%4===0 && model && !training){
           dataset.push({timestamp:new Date().toISOString(),event:"GAZE",
             x:smoothed.x,y:smoothed.y,earA:info.a.ear,earB:info.b.ear});
@@ -251,7 +319,7 @@
       }else{
         byId("sc-face").textContent="未検出";renderFace(null,null);
         if(now-lastFaceAt>250){cursor.style.display="none";squintStart=0;latched=false;}
-        if(training)training.stepAt+=33;
+        if(training)training.since+=33;
       }
       frames++;
       if(now-countedAt>=1000){
@@ -274,8 +342,8 @@
       stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},frameRate:{ideal:30}},audio:false});
       video.srcObject=stream;await video.play();
       running=true;frames=0;countedAt=performance.now();lastFrameAt=0;lastFaceAt=performance.now();
-      startBtn.textContent="カメラ動作中";calBtn.disabled=false;
-      status("カメラを開始しました。まず「全画面」→「9点学習」をおすすめします。");
+      startBtn.textContent="カメラ動作中";calBtn.disabled=false;contBtn.disabled=false;bothBtn.disabled=false;
+      status("カメラを開始しました。まず「全画面」→「両方学習」をおすすめします。");
       raf=requestAnimationFrame(loop);
     }catch(e){
       status("起動できません: "+(e.message||e)+". Chromeでカメラ権限と通信状況を確認してください。");
@@ -284,20 +352,8 @@
       if(detector){detector.close();detector=null;}
     }
   }
-  function calibrate(){
-    if(!running)return;
-    model=null;baseline=null;smoothed=null;dataset=[];lastPrediction=null;lastClick=0;
-    csvBtn.disabled=true;byId("sc-pos").textContent="—";
-    root.classList.add("calibrating");
-    training={index:0,samples:[],startCount:0,stepAt:performance.now()};
-    const p=points[0];place(target,p[0],p[1]);target.style.display="block";cursor.style.display="none";
-    byId("sc-bar").style.width="0%";
-    byId("sc-title").textContent="点を見つめてください";
-    byId("sc-instruction").textContent="1 / 9 — 点が切り替わるまで見続けてください";
-    status("9点学習中：それぞれ約2秒間見つめます");
-  }
   async function stop(){
-    running=false;cancelAnimationFrame(raf);
+    running=false;cancelAnimationFrame(raf);cancelTraining();
     if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
     if(detector){detector.close();detector=null;}
     if(document.fullscreenElement===root)await document.exitFullscreen().catch(()=>{});
@@ -305,7 +361,16 @@
     root.remove();window.__stareControlStop=null;
   }
   startBtn.addEventListener("click",start);
-  calBtn.addEventListener("click",calibrate);
+  calBtn.addEventListener("click",()=>beginTraining("grid"));
+  contBtn.addEventListener("click",()=>beginTraining("continuous"));
+  bothBtn.addEventListener("click",()=>beginTraining("both"));
+  byId("sc-cancel").addEventListener("click",()=>cancelTraining());
+  byId("sc-clear").addEventListener("click",()=>{
+    cancelTraining();model=null;baseline=null;smoothed=null;learnedSamples=[];dataset=[];
+    cursor.style.display="none";byId("sc-count").textContent="0件";byId("sc-fiterror").textContent="—";
+    byId("sc-bar").style.width="0%";trainCsvBtn.disabled=true;csvBtn.disabled=true;
+    status("蓄積学習データと推定モデルを初期化しました。");
+  });
   fullBtn.addEventListener("click",async()=>{
     try{if(document.fullscreenElement===root){await document.exitFullscreen();}
         else{await root.requestFullscreen();}}
@@ -324,8 +389,19 @@
     const a=document.createElement("a");a.href=url;a.download="stareControl_realtime.csv";a.click();
     setTimeout(()=>URL.revokeObjectURL(url),2000);
   });
+  trainCsvBtn.addEventListener("click",()=>{
+    if(!learnedSamples.length)return;
+    const cols=["kind","target_x","target_y","ear_a","ear_b",...Array.from({length:learnedSamples[0].v.length},(_,i)=>"f"+i)];
+    const lines=[cols.join(","),...learnedSamples.map(v=>[v.kind,v.x,v.y,v.ea,v.eb,...v.v].join(","))];
+    const url=URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/csv"}));
+    const link=document.createElement("a");link.href=url;link.download="starecontrol_learning_samples.csv";link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+  });
   byId("sc-stop").addEventListener("click",stop);
-  const handleKey=e=>{if(e.key.toLowerCase()==="r"&&!e.repeat&&document.activeElement.tagName!=="INPUT"){modeBtn.click();}};
+  const handleKey=e=>{
+    if(e.key==="Escape"&&training){cancelTraining();return;}
+    if(e.key.toLowerCase()==="r"&&!e.repeat&&!training&&document.activeElement.tagName!=="INPUT"){modeBtn.click();}
+  };
   document.addEventListener("keydown",handleKey);unbindKeys=()=>document.removeEventListener("keydown",handleKey);
   window.__stareControlStop=stop;
   status("準備完了。まず「カメラを開始」を押してください。");
