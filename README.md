@@ -1,24 +1,36 @@
 # stareControl
 
-Webカメラから視線の相対的な動きと左右のウインクを検出する、視線コントローラの試作プロジェクトです。
+通常のWebカメラで視線方向と目の動きを推定するプロジェクトです。
+
+## リアルタイム版（おすすめ）
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Realtime_Calibration.ipynb)
+
+**[リアルタイム版をColabで開く](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Realtime_Calibration.ipynb)**
+
+1. セルを実行し、表示された「カメラを開始」を押す
+2. 全画面にして「9点学習」を選ぶ
+3. 指示された位置の点を順番に約2秒ずつ見つめる
+4. 学習完了後、緑色の点で推定視線位置を確認する
+5. 両目を軽く細めた状態を約0.45秒保って**疑似クリック**する
+6. 感度・維持時間を調整し、必要に応じてCSV保存
+
+ブラウザ内でMediaPipe Tasks Vision APIを実行するため、録画してから解析する方式ではありません。Webカメラ映像はサーバーへ送らず、ブラウザ内で推論します（モデルとライブラリは外部CDNから読み込みます）。
+
+**制約:** 視線座標は9点で学習した近似値です。精度はカメラ・照明・姿勢に左右されます。クリックは可視化のみで、OSのポインタやクリックを操作しません。カメラを使うため、Chrome等でカメラ許可が必要です。
+
+## 録画解析パイロット版
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Colab_Pilot.ipynb)
 
-## Colabで試す
+録画した12秒の動画をTasks APIで解析する初期バージョンです。
 
-上の **Open in Colab** をクリックし、セルを上から順に実行してください。
+## ファイル
 
-1. MediaPipeなどの依存パッケージをインストール
-2. ブラウザでカメラへのアクセスを許可し、12秒間撮影
-3. 顔・虹彩位置・目の開閉・左右ウインクの候補を解析
-4. 注釈付き動画とグラフを確認し、CSVをダウンロード
+- `stareControl_Realtime_Calibration.ipynb` — リアルタイム視線推定・9点キャリブレーション
+- `web/realtime.js` — ブラウザ側のMediaPipe処理・UI・学習・疑似クリック
+- `stareControl_Colab_Pilot.ipynb` — 以前の録画解析実験
 
-**注意**: Colab版はPCのマウスを直接動かしません。視線は未校正の相対値であり、画面上の正確な座標ではありません。左右クリックの判定と左右の対応は試験的なものです。動画を公開しないようご注意ください。
+## 開発方針
 
-## 使用技術
-
-Python、OpenCV、MediaPipe Tasks API (Face Landmarker)、Google Colab
-
-## 今後の予定
-
-9点キャリブレーション、クリック誤検知の抑制、PySide6によるデスクトップGUIとOSカーソル制御。
+将来はPySide6によるデスクトップGUIに移行し、OSのカーソル制御、個人別閾値校正、視線推定の精度評価を行います。
