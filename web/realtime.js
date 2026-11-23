@@ -30,7 +30,11 @@
     "#starecontrol-realtime .heading h1{font-size:clamp(18px,3vw,34px);margin:0;font-weight:630;letter-spacing:-.7px}",
     "#starecontrol-realtime .heading p{color:#9eb1cc;margin:5px 0;font-size:13px}",
     "#starecontrol-realtime.calibrating .panel,#starecontrol-realtime.calibrating .camera{opacity:0;pointer-events:none}",
-    "#starecontrol-realtime.calibrating .heading{top:25%}",
+    "#starecontrol-realtime.calibrating .heading{top:16%}",
+    "#starecontrol-realtime select{color:#eff5ff;background:#24334d;border:1px solid #465b7a;padding:7px 9px;border-radius:10px;font:inherit}",
+    "#starecontrol-realtime .cancel-training{display:none;position:absolute;top:16px;right:18px;z-index:12}",
+    "#starecontrol-realtime.calibrating .cancel-training{display:block}",
+    "#starecontrol-realtime .target{transition:left 35ms linear,top 35ms linear}",
     "#starecontrol-realtime .target{position:absolute;width:38px;height:38px;border:2px solid #c9ddff;border-radius:50%;transform:translate(-50%,-50%);display:none;z-index:5;pointer-events:none;box-shadow:0 0 0 14px #8ebaff16,0 0 42px #96bfff55}",
     "#starecontrol-realtime .target:after{content:\"\";position:absolute;inset:12px;border-radius:100%;background:#eaf5ff}",
     "#starecontrol-realtime .cursor{position:absolute;width:26px;height:26px;border:2px solid #8ee9ce;border-radius:50%;transform:translate(-50%,-50%);display:none;z-index:4;pointer-events:none;box-shadow:0 0 0 9px #8ee9ce18,0 0 30px #8ee9ce44;transition:left 45ms linear,top 45ms linear}",
@@ -46,15 +50,16 @@
     "@media(max-width:730px){#starecontrol-realtime .panel{left:8px;top:8px;width:260px;padding:13px}#starecontrol-realtime .camera{right:8px;top:8px;width:145px}#starecontrol-realtime .heading{top:56%;max-width:70vw}#starecontrol-realtime .heading h1{font-size:18px}#starecontrol-realtime .footer{font-size:10px}}"
   ].join("");
   root.innerHTML = [
-    '<div class="heading"><h1 id="sc-title">視線の推定</h1><p id="sc-instruction">カメラを開始して、画面の9点を順番に見てください</p></div>',
+    '<div class="heading"><h1 id="sc-title">視線の推定</h1><p id="sc-instruction">カメラを開始して視線を学習してください</p></div>',
     '<div class="panel"><h2>stareControl <span class="pill">Live</span></h2><div class="sub">視線推定と細目クリック / 実験版</div>',
-    '<div class="buttons"><button class="primary wide" id="sc-start">カメラを開始</button><button id="sc-cal" disabled>9点学習</button><button id="sc-full">全画面</button><button id="sc-mode">左クリック</button><button id="sc-csv" disabled>CSV保存</button><button class="wide" id="sc-stop">終了</button></div>',
+    '<div class="buttons"><button class="primary wide" id="sc-start">カメラを開始</button><button id="sc-cal" disabled>離散点学習</button><button id="sc-full">全画面</button><button id="sc-mode">左クリック</button><button id="sc-csv" disabled>CSV保存</button><button class="wide" id="sc-stop">終了</button></div>',
+    '<div class="section"><div class="metric"><span>離散点数</span><select id="sc-grid"><option value="3">9点</option><option value="5" selected>25点</option><option value="7">49点</option></select></div><div class="metric"><span>連続学習時間</span><select id="sc-duration"><option value="30">30秒</option><option value="60" selected>60秒</option><option value="90">90秒</option></select></div><div class="buttons"><button id="sc-cont" disabled>連続追従</button><button class="primary" id="sc-both" disabled>両方学習</button><button class="wide" id="sc-clear">学習データを初期化</button><button class="wide" id="sc-traincsv" disabled>学習サンプルCSV</button></div><div class="metric"><span>学習データ</span><strong id="sc-count">0件</strong></div><div class="metric"><span>学習内の平均誤差</span><strong id="sc-fiterror">—</strong></div><p class="tiny">静止点と動く点を追って学習。学習データは追加蓄積されます。</p></div>',
     '<div class="section"><div class="metric"><span>顔の検出</span><strong id="sc-face">未開始</strong></div><div class="metric"><span>推定位置</span><strong id="sc-pos">—</strong></div><div class="metric"><span>処理速度</span><strong id="sc-fps">—</strong></div><div class="metric"><span>直近のクリック</span><strong id="sc-click">—</strong></div></div>',
     '<div class="section"><label for="sc-sensitivity">細目クリックの感度 <span id="sc-sval">78%</span></label><input id="sc-sensitivity" type="range" min="65" max="90" value="78" step="1"><p class="tiny">両目を軽く細めて約0.45秒保つとクリック。普通の瞬きは短いため無視します。</p>',
     '<label for="sc-hold">必要な維持時間 <span id="sc-hval">450 ms</span></label><input id="sc-hold" type="range" min="300" max="1000" value="450" step="50"></div>',
-    '<div class="section"><div class="tiny">キャリブレーション</div><div class="progress"><span id="sc-bar"></span></div><div class="status" id="sc-status">カメラを開始してください。</div><p class="note">全画面にしてから9点学習すると、画面全体を使えます。推定は近似値で、OSのマウスは動きません。動画を保存・送信する処理はありません。</p></div></div>',
+    '<div class="section"><div class="tiny">キャリブレーション</div><div class="progress"><span id="sc-bar"></span></div><div class="status" id="sc-status">カメラを開始してください。</div><p class="note">全画面にしてから学習してください。Escまたは右上のボタンで中止できます。推定は近似値で、OSのマウスは動きません。動画を保存・送信する処理はありません。</p></div></div>',
     '<div class="camera"><div class="camera-viewport"><video id="sc-video" autoplay playsinline muted></video><canvas class="face" id="sc-canvas" width="320" height="240"></canvas></div><div class="cam-caption">リアルタイムの目・虹彩検出</div></div>',
-    '<div class="target" id="sc-target"></div><div class="cursor" id="sc-cursor"></div>',
+    '<div class="target" id="sc-target"></div><div class="cursor" id="sc-cursor"></div><button id="sc-cancel" class="cancel-training">学習を中止</button>',
     '<div class="footer">MediaPipe Face Landmarker · browser local inference · calibration required</div>'
   ].join("");
   root.appendChild(css);
@@ -62,9 +67,24 @@
   const byId = id => root.querySelector("#" + id);
   const video=byId("sc-video"), faceCanvas=byId("sc-canvas"), faceCtx=faceCanvas.getContext("2d");
   const startBtn=byId("sc-start"), calBtn=byId("sc-cal"), fullBtn=byId("sc-full"), modeBtn=byId("sc-mode"), csvBtn=byId("sc-csv");
+  const contBtn=byId("sc-cont"), bothBtn=byId("sc-both"), trainCsvBtn=byId("sc-traincsv");
   const cursor=byId("sc-cursor"), target=byId("sc-target");
   const status=msg=>{ byId("sc-status").textContent=msg; };
-  const points=[[.08,.08],[.5,.08],[.92,.08],[.92,.5],[.5,.5],[.08,.5],[.08,.92],[.5,.92],[.92,.92]];
+  let learnedSamples=[];
+  const clip=x=>Math.min(1,Math.max(0,x));
+  function grid(n){
+    const pts=[];
+    for(let y=0;y<n;y++)for(let x=0;x<n;x++)pts.push([.07+.86*x/(n-1),.07+.86*y/(n-1)]);
+    const center=pts.splice(Math.floor(pts.length/2),1)[0];
+    for(let i=pts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pts[i],pts[j]]=[pts[j],pts[i]];}
+    return [center,...pts];
+  }
+  function trail(t,duration){
+    const u=clip(t/duration);
+    if(u<=.36){const v=u/.36;return [.5-.43*Math.cos(4*Math.PI*v),.07+.86*v];}
+    if(u<=.72){const v=(u-.36)/.36;return [.07+.86*v,.5+.43*Math.cos(4*Math.PI*v)];}
+    const v=(u-.72)/.28;return [.5+.43*Math.cos(4*Math.PI*v),.5+.43*Math.cos(6*Math.PI*v)];
+  }
   let stream=null, detector=null, running=false, busy=false, raf=0, frames=0, countedAt=performance.now();
   let training=null, model=null, baseline=null, smoothed=null, clickMode="LEFT", squintStart=0, latched=false, lastClick=0;
   let recentOpen=[], dataset=[], lastFaceAt=0, lastFrameAt=0, lastPrediction=null, currentLandmarks=null;
@@ -122,11 +142,10 @@
     if(!bx||!by)throw new Error("学習計算に失敗しました");
     return {av,sd,bx,by};
   }
-  function predict(v){
-    const z=[1,...v.map((x,i)=>(x-model.av[i])/model.sd[i])];
-    const clip=x=>Math.min(1,Math.max(0,x));
-    return {x:clip(z.reduce((s,q,i)=>s+q*model.bx[i],0)),
-            y:clip(z.reduce((s,q,i)=>s+q*model.by[i],0))};
+  function predict(v,m=model){
+    const z=[1,...v.map((x,i)=>(x-m.av[i])/m.sd[i])];
+    return {x:clip(z.reduce((sum,q,i)=>sum+q*m.bx[i],0)),
+            y:clip(z.reduce((sum,q,i)=>sum+q*m.by[i],0))};
   }
   function place(el,x,y){el.style.left=(x*100)+"%";el.style.top=(y*100)+"%";}
   function tickCalibration(info, now){
