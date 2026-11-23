@@ -1,36 +1,43 @@
 # stareControl
 
-通常のWebカメラで視線方向と目の動きを推定するプロジェクトです。
+通常のWebカメラから視線位置を推定し、目を軽く細めた操作を疑似クリックとして認識する実験プロジェクトです。
 
-## リアルタイム版（おすすめ）
+## リアルタイム版（専用タブで開く）
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Realtime_Calibration.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Realtime_Calibration.ipynb)
 
 **[リアルタイム版をColabで開く](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Realtime_Calibration.ipynb)**
 
-1. セルを実行し、表示された「カメラを開始」を押す
-2. 全画面にして「9点学習」を選ぶ
-3. 指示された位置の点を順番に約2秒ずつ見つめる
-4. 学習完了後、緑色の点で推定視線位置を確認する
-5. 両目を軽く細めた状態を約0.45秒保って**疑似クリック**する
-6. 感度・維持時間を調整し、必要に応じてCSV保存
+1. Colabで**上からすべてのセルを実行**する
+2. 最後のセルに出る `https://localhost:...` の**Colab転送リンク**をクリックする
+3. **別タブの専用画面**でカメラ使用を許可する
+4. 「全画面」→「9点学習」で表示される9点を約2秒ずつ見る
+5. 緑色の点で視線推定を確認し、**両目を軽く細めて約0.45秒維持**すると疑似クリック
+6. 必要ならクリック感度・維持時間を調整し、CSV保存
 
-ブラウザ内でMediaPipe Tasks Vision APIを実行するため、録画してから解析する方式ではありません。Webカメラ映像はサーバーへ送らず、ブラウザ内で推論します（モデルとライブラリは外部CDNから読み込みます）。
+### Colabセル内では表示しない理由
 
-**制約:** 視線座標は9点で学習した近似値です。精度はカメラ・照明・姿勢に左右されます。クリックは可視化のみで、OSのポインタやクリックを操作しません。カメラを使うため、Chrome等でカメラ許可が必要です。
+Colabの `display(Javascript(...))` はセル出力の小さなフレームに画面が収まってしまい、カメラ・学習点が切れることがあります。修正版はPythonの簡易Webサーバーと `output.serve_kernel_port_as_window` で独立したタブへ切り出しています。Colabのランタイムを切断すると専用画面も停止します。
+
+**ノートブックの中に実装本体（JavaScript）も収録済み**です。11行の起動処理だけでなく、全文をColabで編集・検証できます。
+
+### 直接表示用HTML
+
+`index.html` は同じリアルタイムUIの静的HTMLです。GitHub PagesなどHTTPSの静的ホスティングを有効にするとColabなしで開けます。ただしPagesで公開していないリポジトリでは直接アクセスできません。
+
+### 制限
+
+一般的なWebカメラによる視線推定は近似値で、照明・姿勢などに左右されます。OSのマウスポインタは動かしません。映像を録画・サーバーに送信する実装はありません。MediaPipeのモデルとライブラリは外部CDNから読み込みます。
 
 ## 録画解析パイロット版
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Colab_Pilot.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ryouy/stareControl/blob/main/stareControl_Colab_Pilot.ipynb)
 
-録画した12秒の動画をTasks APIで解析する初期バージョンです。
+以前の12秒の録画動画解析を行う実験ノートブックです。
 
-## ファイル
+## 構成
 
-- `stareControl_Realtime_Calibration.ipynb` — リアルタイム視線推定・9点キャリブレーション
-- `web/realtime.js` — ブラウザ側のMediaPipe処理・UI・学習・疑似クリック
-- `stareControl_Colab_Pilot.ipynb` — 以前の録画解析実験
-
-## 開発方針
-
-将来はPySide6によるデスクトップGUIに移行し、OSのカーソル制御、個人別閾値校正、視線推定の精度評価を行います。
+- `stareControl_Realtime_Calibration.ipynb`: リアルタイム専用画面と全実装コードを含むColab版
+- `web/realtime.js`: Web版実装の原本
+- `index.html`: 静的ホスティング用の専用画面
+- `stareControl_Colab_Pilot.ipynb`: 録画解析の旧実験版
