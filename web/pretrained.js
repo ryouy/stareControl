@@ -80,9 +80,9 @@ function tensor(){
 function crop(lm){
  const w=video.videoWidth,h=video.videoHeight;let l=1,t=1,r=0,b=0;
  for(const p of lm){l=Math.min(l,p.x);t=Math.min(t,p.y);r=Math.max(r,p.x);b=Math.max(b,p.y)}
- let width=(r-l)*w,height=(b-t)*h;const padding=.08;
- l=Math.max(0,(l-padding*(r-l))*w);t=Math.max(0,(t-padding*(b-t))*h);
- r=Math.min(w,(r+padding*(r-l))*w);b=Math.min(h,(b+padding*(b-t))*h);
+ const dx=r-l,dy=b-t,padding=.08;
+ l=Math.max(0,(l-padding*dx)*w);t=Math.max(0,(t-padding*dy)*h);
+ r=Math.min(w,(r+padding*dx)*w);b=Math.min(h,(b+padding*dy)*h);
  if(r-l<35||b-t<35)return false;
  painter.drawImage(video,l,t,r-l,b-t,0,0,448,448);return true;
 }
@@ -138,8 +138,8 @@ async function process(t){
   el("pitch").textContent=(pitch*180/Math.PI).toFixed(1)+"°";
   if(center){
    if(t-center.start>450)center.samples.push([yaw,pitch]);
-   el("hint").textContent="中央を見続けてください · "+Math.max(0,Math.ceil((center.start+2600-t)/1000))+"秒";
-   if(t-center.start>=2600&&center.samples.length>=6){
+   el("hint").textContent="中央を見続けてください · "+Math.max(0,Math.ceil((center.start+3200-t)/1000))+"秒";
+   if(t-center.start>=3200&&center.samples.length>=3){
     offset={x:median(center.samples.map(a=>a[0])),y:median(center.samples.map(a=>a[1]))};
     center=null;root.classList.remove("calibrating");el("title").textContent="視線を推定中";
     el("hint").textContent="短い中央補正が完了しました";setStatus("中央を基準に補正しました。");
